@@ -4,7 +4,13 @@ import type { Scope } from '../paths.js';
 import { CONFIG_PATH } from '../../config/index.js';
 import { DIST_DIR } from '../constants.js';
 import { assertStableLocation, install, uninstall } from '../install.js';
-import { instructionsPathFor, mcpPathFor, settingsPathFor, skillPathFor } from '../paths.js';
+import {
+  instructionsPathFor,
+  mcpPathFor,
+  settingsPathFor,
+  sharedSettingsPathFor,
+  skillPathFor,
+} from '../paths.js';
 import { createContext } from '../../context.js';
 import { join, resolve } from 'node:path';
 import { readFileSync, statSync } from 'node:fs';
@@ -88,13 +94,10 @@ export async function cmdStatus(): Promise<void> {
     const sessions = await ctx.store.recentSessions(project, 100);
 
     const wiring = [
-      { scope: 'project' as const, label: 'this project' },
-      { scope: 'global' as const, label: 'all projects' },
-    ].map((entry) => ({
-      ...entry,
-      path: settingsPathFor(entry.scope, project),
-      installed: isInstalled(settingsPathFor(entry.scope, project)),
-    }));
+      { label: 'this project', path: settingsPathFor('project', project) },
+      { label: 'this project (shared settings)', path: sharedSettingsPathFor(project) },
+      { label: 'all projects', path: settingsPathFor('global', project) },
+    ].map((entry) => ({ ...entry, installed: isInstalled(entry.path) }));
 
     const active = wiring.filter((entry) => entry.installed);
 

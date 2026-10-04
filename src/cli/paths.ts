@@ -9,6 +9,13 @@ export function settingsPathFor(scope: Scope, project: string): string {
     : join(homedir(), '.claude', 'settings.json');
 }
 
+// The project's committed settings. `install` never writes here, but hooks wired
+// by hand in this file run for every checkout of the repository (worktrees
+// included), so status and doctor must read it too.
+export function sharedSettingsPathFor(project: string): string {
+  return join(project, '.claude', 'settings.json');
+}
+
 export function instructionsPathFor(scope: Scope, project: string): string {
   return scope === 'project'
     ? join(project, 'CLAUDE.local.md')

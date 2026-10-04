@@ -5,7 +5,7 @@ import { packageVersion } from '../../update.js';
 import { randomUUID } from 'node:crypto';
 import { redact, remember } from '../../capture/index.js';
 import { resolveProject } from '../../util/project.js';
-import { settingsPathFor } from '../paths.js';
+import { settingsPathFor, sharedSettingsPathFor } from '../paths.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { toShortId } from '../../util/shortid.js';
 
@@ -43,8 +43,13 @@ export async function cmdDoctor(argv: (string | undefined)[]): Promise<void> {
 
 function checkWiring(project: string): void {
   const problems: string[] = [];
-  for (const scope of ['project', 'global'] as const) {
-    const path = settingsPathFor(scope, project);
+  let found = 0;
+  const paths = [
+    settingsPathFor('project', project),
+    sharedSettingsPathFor(project),
+    settingsPathFor('global', project),
+  ];
+  for (const path of paths) {
     let settings: { hooks?: Record<string, { hooks: { command: string }[] }[]> };
     try {
       settings = JSON.parse(readFileSync(path, 'utf8'));
@@ -59,6 +64,7 @@ function checkWiring(project: string): void {
             command.replace(/\\/g, '/'),
           ),
         );
+      found += ours.length;
       if (ours.length > 1) problems.push(`${event} registered ${ours.length}x in ${path}`);
       for (const command of ours) {
         const file = command.replace(/^node\s+/, '');
@@ -66,8 +72,14 @@ function checkWiring(project: string): void {
       }
     }
   }
+  // No hooks anywhere is not "ok": nothing would ever be captured.
+  if (found === 0) {
+    console.log('wiring   : NOT INSTALLED — no claude-db hooks in any settings file');
+    console.log('           fix with: claude-db install --project');
+    return;
+  }
   if (problems.length === 0) {
-    console.log('wiring   : ok');
+    console.log(`wiring   : ok (${found} hook(s))`);
     return;
   }
   for (const problem of problems) console.log(`wiring   : PROBLEM — ${problem}`);
